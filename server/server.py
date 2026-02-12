@@ -45,12 +45,11 @@ async def acs_event_callbacks(context_id):
 
 @app.websocket("/acs/ws")
 async def acs_ws():
-    """WebSocket endpoint for ACS to send audio to Voice Live."""
     logger = logging.getLogger("acs_ws")
     logger.info("Incoming ACS WebSocket connection")
 
     # Extract customer_id from query parameters
-    customer_id = request.args.get("customerId", "default")
+    customer_id = websocket.args.get("customerId", "default")   # <-- change
     logger.info("ACS WebSocket connection for customer: %s", customer_id)
 
     handler = ACSMediaHandler(app.config, customer_id=customer_id)
@@ -68,12 +67,11 @@ async def acs_ws():
 
 @app.websocket("/web/ws")
 async def web_ws():
-    """WebSocket endpoint for web clients to send audio to Voice Live."""
     logger = logging.getLogger("web_ws")
     logger.info("Incoming Web WebSocket connection")
 
     # Extract customer_id from query parameters
-    customer_id = request.args.get("customerId", "default")
+    customer_id = websocket.args.get("customerId", "default")   # <-- change
     logger.info("Web WebSocket connection for customer: %s", customer_id)
 
     handler = ACSMediaHandler(app.config, customer_id=customer_id)
