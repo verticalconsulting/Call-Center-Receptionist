@@ -16,6 +16,7 @@ from azure.eventgrid import EventGridEvent, SystemEventNames
 from quart import Response
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_customer_routing() -> dict:
@@ -25,8 +26,7 @@ def load_customer_routing() -> dict:
     Returns:
         Dictionary with customer routing config
     """
-    handler_dir = Path(__file__).parent
-    routing_path = handler_dir.parent.parent / "customer_routing.json"
+    routing_path = PROJECT_ROOT / "customer_routing.json"
 
     try:
         with open(routing_path, "r", encoding="utf-8") as f:

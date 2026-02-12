@@ -55,7 +55,7 @@ The frontend dev server runs on port 3000 and proxies WebSocket requests to the 
 
 ```bash
 # Build image
-docker build -t voiceagent .
+docker build -t voiceagent -f server/Dockerfile .
 
 # Run with environment variables
 docker run --env-file .env -p 8000:8000 -it voiceagent
@@ -76,6 +76,8 @@ azd deploy
 # Clean up all resources
 azd down
 ```
+
+`azd` deploys the `app` service using repository root as build context (`azure.yaml` -> `services.app.project: .`) so the image includes both `server/` and `frontend/`.
 
 ### Testing with ACS Phone Client (Local)
 

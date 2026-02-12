@@ -10,6 +10,19 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+############################
+# Frontend build stage      #
+############################
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build -- --outDir /tmp/booking-build
+
 ###############
 # Build stage #
 ###############
@@ -31,15 +44,18 @@ RUN python -m venv /app/.venv
 RUN /app/.venv/bin/pip install --upgrade pip
 
 # Copy dependency files
-COPY pyproject.toml uv.lock /app/
+COPY server/pyproject.toml server/uv.lock /app/
 
 # Sync the project into a new environment, using the frozen lockfile
 RUN uv sync --frozen --no-dev --no-install-project --no-editable --all-packages
 
-COPY *.py *.md /app/
-COPY app /app/app/
-COPY static /app/static/
-COPY prompts /app/prompts/
+COPY server/*.py server/*.md server/*.json /app/
+COPY server/app /app/app/
+COPY server/static /app/static/
+COPY server/prompts /app/prompts/
+
+# Copy frontend build output into static/booking
+COPY --from=frontend-builder /tmp/booking-build /app/static/booking
 
 ###############
 # Final image #

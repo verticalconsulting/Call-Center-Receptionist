@@ -16,6 +16,7 @@ from websockets.asyncio.client import connect as ws_connect
 from websockets.typing import Data
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # Event type constants
 SESSION_CREATED = "session.created"
@@ -43,10 +44,8 @@ def load_system_prompt(prompt_file: str = "grace_intake_agent.txt") -> str:
     Raises:
         FileNotFoundError: If prompt file doesn't exist
     """
-    # Get path relative to this file: server/app/handler/acs_media_handler.py
-    # Navigate up to server/ and then into prompts/
-    handler_dir = Path(__file__).parent
-    prompts_dir = handler_dir.parent.parent / "prompts"
+    # server/app/handler/acs_media_handler.py -> server/
+    prompts_dir = PROJECT_ROOT / "prompts"
     prompt_path = prompts_dir / prompt_file
 
     try:
@@ -76,8 +75,7 @@ def load_customer_routing() -> dict:
     Returns:
         Dictionary with customer routing config
     """
-    handler_dir = Path(__file__).parent
-    routing_path = handler_dir.parent.parent / "customer_routing.json"
+    routing_path = PROJECT_ROOT / "customer_routing.json"
 
     try:
         with open(routing_path, "r", encoding="utf-8") as f:
@@ -515,8 +513,7 @@ class ACSMediaHandler:
 
         # Also save locally for development/debugging
         try:
-            handler_dir = Path(__file__).parent
-            logs_dir = handler_dir.parent.parent / "conversation_logs"
+            logs_dir = PROJECT_ROOT / "conversation_logs"
             logs_dir.mkdir(exist_ok=True)
             log_path = logs_dir / filename
 

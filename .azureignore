@@ -1,4 +1,7 @@
 server/.venv/
+frontend/node_modules/
+**/node_modules/
+**/.venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -7,5 +10,8 @@ __pycache__/
 *.bak
 .devcontainer/
 .github/
+.azure/
 docs/
 infra/
+.git/
+.gitignore

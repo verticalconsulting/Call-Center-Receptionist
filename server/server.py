@@ -1,11 +1,17 @@
 import asyncio
 import logging
 import os
+from pathlib import Path
 
 from app.handler.acs_event_handler import AcsEventHandler
 from app.handler.acs_media_handler import ACSMediaHandler
-from dotenv import load_dotenv
-from quart import Quart, request, websocket
+try:
+    from dotenv import load_dotenv  # optional dependency; fall back if not installed
+except Exception:
+    def load_dotenv():
+        # no-op if python-dotenv is not available
+        return False
+from quart import Quart, request, send_from_directory, websocket
 
 load_dotenv()
 
@@ -97,10 +103,18 @@ async def index():
 @app.route("/booking/<path:path>")
 async def booking_app(path=""):
     """Serves the React booking frontend."""
-    try:
-        return await app.send_static_file("booking/index.html")
-    except FileNotFoundError:
+    booking_dir = Path(app.static_folder) / "booking"
+
+    # If booking assets are missing from image, return actionable error.
+    if not (booking_dir / "index.html").exists():
         return "Booking app not built yet. Run 'npm run build' in the frontend directory.", 404
+
+    # Serve concrete files from the booking bundle (assets, icons, etc).
+    if path and (booking_dir / path).is_file():
+        return await send_from_directory(booking_dir, path)
+
+    # For client-side routes under /booking, serve SPA entrypoint.
+    return await send_from_directory(booking_dir, "index.html")
 
 
 if __name__ == "__main__":

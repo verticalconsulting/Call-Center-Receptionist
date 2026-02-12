@@ -1,0 +1,11 @@
+*
+!server/**
+!frontend/**
+
+# Exclude local artifacts from both app and frontend
+server/.venv/
+server/**/__pycache__/
+server/**/*.pyc
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/

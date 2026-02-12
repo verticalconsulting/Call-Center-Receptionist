@@ -162,6 +162,12 @@ To change the `azd` parameters from the default values, follow the steps [here](
     ```
 
 >[!NOTE]
+>The `azd` service is configured to build from the repository root (`azure.yaml` -> `services.app.project: .`) so the container image can include both backend (`server/`) and booking frontend (`frontend/`) artifacts.
+
+>[!TIP]
+>If you previously saw `archive/tar: write too long` during `azd deploy`, pull latest changes (including `server/.dockerignore`) and retry.
+
+>[!NOTE]
 >AZD will also setup the local Python environment for you, using `venv` and installing the required packages.
 
 

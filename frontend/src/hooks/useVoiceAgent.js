@@ -19,7 +19,7 @@ export function useVoiceAgent(customerId) {
     // Load audio worklet processor
     const loadAudioProcessor = async () => {
       try {
-        await audioContextRef.current.audioWorklet.addModule('/audio-processor.js')
+        await audioContextRef.current.audioWorklet.addModule('/booking/audio-processor.js')
         workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'audio-processor')
         workletNodeRef.current.connect(audioContextRef.current.destination)
       } catch (err) {
