@@ -3,6 +3,8 @@ param keyVaultName string
 param tags object
 @secure()
 param acsConnectionString string
+@secure()
+param acsSmsConnectionString string = ''
 
 var sanitizedKeyVaultName = take(toLower(replace(replace(replace(replace(keyVaultName, '--', '-'), '_', '-'), '[^a-zA-Z0-9-]', ''), '-$', '')), 24)
 
@@ -33,8 +35,17 @@ resource acsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   }
 }
 
+resource acsSmsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'ACS-SMS-CONNECTION-STRING'
+  properties: {
+    value: empty(acsSmsConnectionString) ? acsConnectionString : acsSmsConnectionString
+  }
+}
+
 var keyVaultDnsSuffix = environment().suffixes.keyvaultDns
 
 output acsConnectionStringUri string = 'https://${keyVault.name}${keyVaultDnsSuffix}/secrets/${acsConnectionStringSecret.name}'
+output acsSmsConnectionStringUri string = 'https://${keyVault.name}${keyVaultDnsSuffix}/secrets/${acsSmsConnectionStringSecret.name}'
 output keyVaultId string = keyVault.id
 output keyVaultName string = keyVault.name

@@ -9,6 +9,9 @@ param containerRegistryName string
 param aiServicesEndpoint string
 param modelDeploymentName string
 param acsConnectionStringSecretUri string
+param acsSmsConnectionStringSecretUri string
+param acsSmsFrom string
+param bookingReminderLeadHours int = 48
 param storageAccountUrl string
 param logAnalyticsWorkspaceName string
 @description('The name of the container image')
@@ -74,6 +77,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
           keyVaultUrl: acsConnectionStringSecretUri
           identity: identityId
         }
+        {
+          name: 'acs-sms-connection-string'
+          keyVaultUrl: acsSmsConnectionStringSecretUri
+          identity: identityId
+        }
       ]
     }
     template: {
@@ -97,6 +105,18 @@ resource containerApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
             {
               name: 'ACS_CONNECTION_STRING'
               secretRef: 'acs-connection-string'
+            }
+            {
+              name: 'ACS_SMS_CONNECTION_STRING'
+              secretRef: 'acs-sms-connection-string'
+            }
+            {
+              name: 'ACS_SMS_FROM'
+              value: acsSmsFrom
+            }
+            {
+              name: 'BOOKING_REMINDER_LEAD_HOURS'
+              value: string(bookingReminderLeadHours)
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_URL'

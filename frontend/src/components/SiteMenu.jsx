@@ -13,6 +13,7 @@ export default function SiteMenu() {
     { to: homePath, label: 'Services' },
     { to: '/landing/dbat-pearl', label: 'D-BAT Landing' },
     { to: '/booking/dbat_pearl', label: 'Booking' },
+    { to: '/booking/sms-opt-in', label: 'SMS Opt-In' },
     { to: '/demo/dbat_pearl', label: 'Voice Demo' },
     { to: '/booking/admin', label: 'Admin' },
     { to: '/booking/admin/bookings', label: 'Bookings' },

@@ -108,14 +108,27 @@ GOOGLE_CALENDAR_ID=<calendar id>
 BOOKING_TIMEZONE=America/Chicago
 
 ACS_SMS_FROM=<ACS SMS-enabled E.164 phone number>
+ACS_SMS_CONNECTION_STRING=<Optional dedicated ACS SMS connection string; defaults to ACS_CONNECTION_STRING>
+ACS_SMS_TAG=booking-reminder
 BOOKING_REMINDER_LEAD_HOURS=48
 BOOKING_DB_PATH=/tmp/bookings.db
 BOOKING_DEFAULT_PARTY_REVENUE=350
 BOOKING_DEFAULT_CAMP_REVENUE=125
 ```
 
+For Azure deployments, store SMS connection string as an environment secret before provisioning:
+
+```bash
+azd env set ACS_SMS_CONNECTION_STRING "<your-acs-sms-connection-string>"
+azd env set ACS_SMS_FROM "+18337939008"
+azd env set BOOKING_REMINDER_LEAD_HOURS "48"
+azd provision
+azd deploy
+```
+
 Notes:
 - The Google service account must have write access to the configured calendar.
 - Phone numbers are normalized to E.164 for SMS.
+- One SMS reminder is sent per booking, scheduled 48 hours (2 days) before the event by default.
 - Reminders are persisted in SQLite at `BOOKING_DB_PATH`.
 - Voice/call session data is persisted to `call_logs` in the same SQLite database.

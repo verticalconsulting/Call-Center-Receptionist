@@ -13,6 +13,7 @@ import { format } from 'date-fns'
 const campSchema = z.object({
   parentName: z.string().min(2, 'Parent name is required'),
   phoneNumber: z.string().min(10, 'Valid phone number required'),
+  smsOptIn: z.boolean().optional(),
   childName: z.string().min(2, 'Child name is required'),
   childAge: z.string().min(1, 'Child age is required'),
   sport: z.string().min(1, 'Please select a sport'),
@@ -51,6 +52,7 @@ export default function CampRegistrationForm({ customerId }) {
 
     const bookingData = {
       ...data,
+      smsOptIn: Boolean(data.smsOptIn),
       campDates: selectedDates.map((date) => format(date, 'yyyy-MM-dd')),
       bookingType: 'camp_registration',
       customerId,
@@ -115,6 +117,19 @@ export default function CampRegistrationForm({ customerId }) {
             <p className="text-sm text-red-500">{errors.phoneNumber.message}</p>
           )}
         </div>
+      </div>
+      <div className="rounded-md border p-3 bg-slate-50">
+        <label htmlFor="smsOptIn" className="flex gap-2 items-start text-sm text-gray-700">
+          <input
+            id="smsOptIn"
+            type="checkbox"
+            className="mt-1 h-4 w-4"
+            {...register('smsOptIn')}
+          />
+          <span>
+            Text me reminders (optional). Msg &amp; data rates may apply. Reply STOP to unsubscribe, HELP for help.
+          </span>
+        </label>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">

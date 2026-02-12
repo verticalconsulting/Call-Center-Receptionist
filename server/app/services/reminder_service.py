@@ -23,6 +23,7 @@ class ReminderConfig:
     db_path: str
     sms_connection_string: str
     sms_from_number: str
+    sms_tag: str = "booking-reminder"
 
 
 class ReminderService:
@@ -182,8 +183,8 @@ class ReminderService:
             to=[to_phone],
             message=message,
             enable_delivery_report=True,
+            tag=self.config.sms_tag,
         )
         if not results or not getattr(results[0], "successful", False):
             details = results[0] if results else "no result"
             raise RuntimeError(f"SMS send failed: {details}")
-

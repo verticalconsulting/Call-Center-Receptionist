@@ -13,6 +13,12 @@
       },
       "appExists": {
         "value": "${SERVICE_APP_RESOURCE_EXISTS=false}"
+      },
+      "acsSmsFrom": {
+        "value": "${ACS_SMS_FROM=}"
+      },
+      "bookingReminderLeadHours": {
+        "value": "${BOOKING_REMINDER_LEAD_HOURS=48}"
       }
     }
   }

@@ -268,7 +268,7 @@ If you want to redeploy to a different region, delete the `.azure` directory bef
 
 ## Security Considerations
 
-ACS currently does not support Managed Identity. The ACS connection string is stored securely in Key Vault and injected into the container app via its secret URL.
+ACS currently does not support Managed Identity. Connection strings are stored securely in Key Vault and injected into the container app via secret references (`ACS_CONNECTION_STRING` for call automation and `ACS_SMS_CONNECTION_STRING` for SMS reminders).
 
 
 ## Additional Disclaimers

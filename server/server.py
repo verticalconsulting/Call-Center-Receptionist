@@ -23,6 +23,9 @@ app.config["AZURE_VOICE_LIVE_API_KEY"] = os.getenv("AZURE_VOICE_LIVE_API_KEY", "
 app.config["AZURE_VOICE_LIVE_ENDPOINT"] = os.getenv("AZURE_VOICE_LIVE_ENDPOINT")
 app.config["VOICE_LIVE_MODEL"] = os.getenv("VOICE_LIVE_MODEL", "gpt-realtime")
 app.config["ACS_CONNECTION_STRING"] = os.getenv("ACS_CONNECTION_STRING")
+app.config["ACS_SMS_CONNECTION_STRING"] = os.getenv(
+    "ACS_SMS_CONNECTION_STRING", app.config["ACS_CONNECTION_STRING"] or ""
+)
 app.config["ACS_DEV_TUNNEL"] = os.getenv("ACS_DEV_TUNNEL", "")
 app.config["AZURE_USER_ASSIGNED_IDENTITY_CLIENT_ID"] = os.getenv(
     "AZURE_USER_ASSIGNED_IDENTITY_CLIENT_ID", ""
@@ -52,8 +55,9 @@ app.config["DATA_STORE"] = data_store
 reminder_service = ReminderService(
     ReminderConfig(
         db_path=app.config["BOOKING_DB_PATH"],
-        sms_connection_string=app.config["ACS_CONNECTION_STRING"],
+        sms_connection_string=app.config["ACS_SMS_CONNECTION_STRING"],
         sms_from_number=app.config["ACS_SMS_FROM"],
+        sms_tag=os.getenv("ACS_SMS_TAG", "booking-reminder"),
     )
 )
 booking_service = BookingService(

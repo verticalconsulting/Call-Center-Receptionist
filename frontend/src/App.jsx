@@ -5,12 +5,16 @@ import CustomerSelection from './pages/CustomerSelection'
 import BookingPage from './pages/BookingPage'
 import VoiceDemo from './pages/VoiceDemo'
 import SiteMenu from './components/SiteMenu'
+import SiteFooter from './components/SiteFooter'
 import DbatLandingPage from './pages/DbatLandingPage'
 import AdminLayout from './components/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminBookings from './pages/admin/AdminBookings'
 import AdminCalendar from './pages/admin/AdminCalendar'
 import AdminCalls from './pages/admin/AdminCalls'
+import SmsOptInPage from './pages/SmsOptInPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import SmsTermsPage from './pages/SmsTermsPage'
 
 function App() {
   return (
@@ -25,6 +29,12 @@ function App() {
           <Route path="/booking/:customerId" element={<BookingPage />} />
           <Route path="/demo/:customerId" element={<VoiceDemo />} />
           <Route path="/booking/demo/:customerId" element={<VoiceDemo />} />
+          <Route path="/sms-opt-in" element={<SmsOptInPage />} />
+          <Route path="/booking/sms-opt-in" element={<SmsOptInPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/booking/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/sms-terms" element={<SmsTermsPage />} />
+          <Route path="/booking/sms-terms" element={<SmsTermsPage />} />
           <Route path="/booking/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="bookings" element={<AdminBookings />} />
@@ -33,6 +43,7 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <SiteFooter />
         <Toaster position="top-center" />
       </div>
     </Router>

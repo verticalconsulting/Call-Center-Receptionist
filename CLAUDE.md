@@ -17,7 +17,7 @@ This is a **Call Center Voice Agent Accelerator** built with Azure Voice Live AP
   - Azure Communication Services (telephony/call automation)
   - Azure Container Apps (hosting)
   - Azure Container Registry
-  - Azure Key Vault (stores ACS connection string)
+  - Azure Key Vault (stores ACS call + SMS connection strings)
 
 ## Development Commands
 
@@ -152,7 +152,7 @@ Bicep modules provision:
 - AI Services (Voice Live API endpoint)
 - Communication Services (telephony)
 - Container Apps + Container Registry
-- Key Vault (stores ACS connection string as secret)
+- Key Vault (stores ACS call and SMS connection strings as secrets)
 - Monitoring (Log Analytics, Application Insights)
 
 The main deployment is subscription-scoped (`infra/main.bicep`). Note: Limited to `eastus2` and `swedencentral` regions due to Voice Live API availability.
@@ -166,12 +166,14 @@ AZURE_VOICE_LIVE_API_KEY=<AI Foundry resource key>
 AZURE_VOICE_LIVE_ENDPOINT=<AI Foundry resource endpoint>
 VOICE_LIVE_MODEL=gpt-realtime
 ACS_CONNECTION_STRING=<Communication Services connection string>
+ACS_SMS_CONNECTION_STRING=<Optional dedicated ACS SMS connection string; falls back to ACS_CONNECTION_STRING>
+ACS_SMS_FROM=<ACS SMS enabled phone number in E.164 format>
 ACS_DEV_TUNNEL=<Optional: DevTunnel URL for local ACS testing>
 ```
 
 When deployed to Azure, the container app uses:
 - Managed Identity for Voice Live API authentication
-- Key Vault secret reference for ACS connection string
+- Key Vault secret references for ACS connection strings (`ACS_CONNECTION_STRING`, `ACS_SMS_CONNECTION_STRING`)
 
 ## Voice Live API Configuration
 
@@ -292,7 +294,7 @@ See [server/conversation_logs/README.md](server/conversation_logs/README.md) for
 
 ## Important Notes
 
-- **Security**: ACS connection string is stored in Key Vault. Container app retrieves it via secret reference.
+- **Security**: ACS call and SMS connection strings are stored in Key Vault. Container app retrieves them via secret references.
 - **Authentication**: Production deployments use managed identity for Voice Live API. Local development uses API key.
 - **Region Constraints**: Voice Live API is only available in specific regions (swedencentral strongly recommended).
 - **WebSocket Endpoints**:

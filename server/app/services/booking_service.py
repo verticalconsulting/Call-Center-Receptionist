@@ -172,14 +172,16 @@ class BookingService:
         )
         event = self._insert_event(customer_id, summary, description, start_local, end_local)
 
-        reminder_id = self._schedule_reminder(
-            booking_id=event["id"],
-            to_phone=_normalize_phone(payload["phoneNumber"]),
-            parent_name=payload["parentName"],
-            child_name=payload["childName"],
-            booking_label="birthday party",
-            start_time=start_local,
-        )
+        reminder_id = None
+        if self._sms_opted_in(payload):
+            reminder_id = self._schedule_reminder(
+                booking_id=event["id"],
+                to_phone=_normalize_phone(payload["phoneNumber"]),
+                parent_name=payload["parentName"],
+                child_name=payload["childName"],
+                booking_label="birthday party",
+                start_time=start_local,
+            )
         estimated_revenue = float(payload.get("estimatedRevenue") or self.config.default_party_revenue)
         booking_row_id = self.data_store.insert_booking(
             customer_id=customer_id,
@@ -232,14 +234,16 @@ class BookingService:
                 f"Notes: {payload.get('additionalNotes', '')}"
             )
             event = self._insert_event(customer_id, summary, description, start_local, end_local)
-            reminder_id = self._schedule_reminder(
-                booking_id=event["id"],
-                to_phone=_normalize_phone(payload["phoneNumber"]),
-                parent_name=payload["parentName"],
-                child_name=payload["childName"],
-                booking_label="camp",
-                start_time=start_local,
-            )
+            reminder_id = None
+            if self._sms_opted_in(payload):
+                reminder_id = self._schedule_reminder(
+                    booking_id=event["id"],
+                    to_phone=_normalize_phone(payload["phoneNumber"]),
+                    parent_name=payload["parentName"],
+                    child_name=payload["childName"],
+                    booking_label="camp",
+                    start_time=start_local,
+                )
             estimated_revenue = float(payload.get("estimatedRevenue") or self.config.default_camp_revenue)
             booking_row_id = self.data_store.insert_booking(
                 customer_id=customer_id,
@@ -324,3 +328,9 @@ class BookingService:
             message=message,
             send_at_utc=reminder_time,
         )
+
+    def _sms_opted_in(self, payload: Dict[str, Any]) -> bool:
+        # Preserve existing behavior for callers that do not send an opt-in flag (e.g., AI call flow).
+        if "smsOptIn" not in payload:
+            return True
+        return bool(payload.get("smsOptIn"))

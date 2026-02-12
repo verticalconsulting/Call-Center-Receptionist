@@ -80,10 +80,10 @@ export default function DbatLandingPage() {
         <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
           <p className="text-lime-400 font-medium tracking-wide uppercase text-xs mb-3">D-BAT Pearl</p>
           <h1 className="text-4xl md:text-6xl font-bold leading-tight max-w-3xl">
-            Birthday Parties and Camp Programs Families Actually Remember
+            Epic Birthday Parties. Game-Changing Skills Camps.
           </h1>
           <p className="text-slate-300 mt-5 max-w-2xl">
-            Explore upcoming camp flyers, compare party packages, browse photos from past events, and book your date in minutes.
+            Train hard. Celebrate big. Memories—and results—that last.
           </p>
           <div className="flex flex-wrap gap-3 mt-8">
             <Link
@@ -213,4 +213,3 @@ export default function DbatLandingPage() {
     </div>
   )
 }
-
