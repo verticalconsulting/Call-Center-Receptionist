@@ -8,7 +8,7 @@ import { useVoiceAgent } from '@/hooks/useVoiceAgent'
 import toast from 'react-hot-toast'
 
 const customerNames = {
-  dbat_pearl: 'D-BAT Pearl - Willie',
+  dbat_pearl: 'D-BAT Pearl - Chip AI',
   mercy_house: 'Mercy House - Grace',
   customer_xyz: 'Customer XYZ Healthcare',
 }

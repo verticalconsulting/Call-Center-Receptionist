@@ -96,7 +96,7 @@ export default function DbatLandingPage() {
               to="/demo/dbat_pearl"
               className="px-5 py-3 rounded-md border border-slate-600 hover:bg-slate-800"
             >
-              Talk to Willie (AI)
+              Talk to Chip AI
             </Link>
             <a href="tel:+16015551234" className="px-5 py-3 rounded-md border border-slate-600 hover:bg-slate-800">
               Call Front Desk
