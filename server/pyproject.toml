@@ -16,7 +16,11 @@ dependencies = [
     "azure-eventgrid>=4.22.0",
     "azure-identity>=1.23.0",
     "azure-communication-callautomation>=1.4.0",
+    "azure-communication-sms>=1.0.1",
     "azure-storage-blob>=12.24.0",
+    "google-api-python-client>=2.177.0",
+    "google-auth>=2.40.0",
+    "apscheduler>=3.10.4",
     "openai[realtime]>=1.93.0",
     "h2>=4.3.0"
 ]

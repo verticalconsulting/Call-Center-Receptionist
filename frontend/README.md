@@ -182,12 +182,16 @@ The app uses CSS variables defined in `index.css` for theming. Modify the `:root
 - The audio-processor.js file in `public/` handles PCM audio streaming via AudioWorklet
 - WebSocket binary messages are PCM audio at 24kHz sample rate
 - The useVoiceAgent hook manages audio context lifecycle and cleanup
-- Forms currently log to console; integrate with backend API as needed
+- Booking forms submit to backend APIs for calendar sync and reminder scheduling
+- Admin console is available at `/booking/admin` with pages for dashboard, bookings, schedule, and calls
+- Admin/report endpoints:
+  - `GET /api/admin/reports/summary?days=30`
+  - `GET /api/admin/bookings?limit=300`
+  - `GET /api/admin/calls?limit=300`
 
 ## Next Steps
 
-- Connect booking forms to backend API endpoints
-- Add booking confirmation emails
-- Implement calendar availability checking
-- Add analytics tracking
-- Enhance error handling and offline support
+- Add booking status updates/edit workflows from admin pages
+- Add call transcript drill-down modal in call history
+- Add charts for daily revenue and bookings in dashboard
+- Add role-based auth for admin pages

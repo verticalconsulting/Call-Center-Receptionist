@@ -5,13 +5,16 @@ from pathlib import Path
 
 from app.handler.acs_event_handler import AcsEventHandler
 from app.handler.acs_media_handler import ACSMediaHandler
+from app.services.booking_service import BookingConfig, BookingService
+from app.services.data_store import DataStore
+from app.services.reminder_service import ReminderConfig, ReminderService
 try:
     from dotenv import load_dotenv  # optional dependency; fall back if not installed
 except Exception:
     def load_dotenv():
         # no-op if python-dotenv is not available
         return False
-from quart import Quart, request, send_from_directory, websocket
+from quart import Quart, jsonify, redirect, request, send_from_directory, websocket
 
 load_dotenv()
 
@@ -26,12 +29,59 @@ app.config["AZURE_USER_ASSIGNED_IDENTITY_CLIENT_ID"] = os.getenv(
 )
 app.config["AZURE_STORAGE_ACCOUNT_URL"] = os.getenv("AZURE_STORAGE_ACCOUNT_URL", "")
 app.config["AZURE_STORAGE_CONTAINER"] = os.getenv("AZURE_STORAGE_CONTAINER", "conversation-logs")
+app.config["GOOGLE_SERVICE_ACCOUNT_JSON"] = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+app.config["GOOGLE_SERVICE_ACCOUNT_FILE"] = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "")
+app.config["GOOGLE_CALENDAR_ID"] = os.getenv("GOOGLE_CALENDAR_ID", "")
+app.config["BOOKING_TIMEZONE"] = os.getenv("BOOKING_TIMEZONE", "America/Chicago")
+app.config["ACS_SMS_FROM"] = os.getenv("ACS_SMS_FROM", "")
+app.config["BOOKING_REMINDER_LEAD_HOURS"] = int(os.getenv("BOOKING_REMINDER_LEAD_HOURS", "48"))
+app.config["BOOKING_DB_PATH"] = os.getenv("BOOKING_DB_PATH", "/tmp/bookings.db")
+app.config["BOOKING_PARTY_DURATION_MINUTES"] = int(os.getenv("BOOKING_PARTY_DURATION_MINUTES", "120"))
+app.config["BOOKING_CAMP_DURATION_MINUTES"] = int(os.getenv("BOOKING_CAMP_DURATION_MINUTES", "180"))
+app.config["BOOKING_CAMP_DEFAULT_START_TIME"] = os.getenv("BOOKING_CAMP_DEFAULT_START_TIME", "09:00")
+app.config["BOOKING_DEFAULT_PARTY_REVENUE"] = float(os.getenv("BOOKING_DEFAULT_PARTY_REVENUE", "350"))
+app.config["BOOKING_DEFAULT_CAMP_REVENUE"] = float(os.getenv("BOOKING_DEFAULT_CAMP_REVENUE", "125"))
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s: %(message)s"
 )
 
 acs_handler = AcsEventHandler(app.config)
+data_store = DataStore(app.config["BOOKING_DB_PATH"])
+app.config["DATA_STORE"] = data_store
+reminder_service = ReminderService(
+    ReminderConfig(
+        db_path=app.config["BOOKING_DB_PATH"],
+        sms_connection_string=app.config["ACS_CONNECTION_STRING"],
+        sms_from_number=app.config["ACS_SMS_FROM"],
+    )
+)
+booking_service = BookingService(
+    BookingConfig(
+        timezone=app.config["BOOKING_TIMEZONE"],
+        google_calendar_id=app.config["GOOGLE_CALENDAR_ID"],
+        google_service_account_json=app.config["GOOGLE_SERVICE_ACCOUNT_JSON"],
+        google_service_account_file=app.config["GOOGLE_SERVICE_ACCOUNT_FILE"],
+        reminder_lead_hours=app.config["BOOKING_REMINDER_LEAD_HOURS"],
+        party_duration_minutes=app.config["BOOKING_PARTY_DURATION_MINUTES"],
+        camp_duration_minutes=app.config["BOOKING_CAMP_DURATION_MINUTES"],
+        camp_default_start_time=app.config["BOOKING_CAMP_DEFAULT_START_TIME"],
+        default_party_revenue=app.config["BOOKING_DEFAULT_PARTY_REVENUE"],
+        default_camp_revenue=app.config["BOOKING_DEFAULT_CAMP_REVENUE"],
+    ),
+    reminder_service=reminder_service,
+    data_store=data_store,
+)
+
+
+@app.before_serving
+async def startup():
+    reminder_service.start()
+
+
+@app.after_serving
+async def shutdown():
+    await reminder_service.shutdown()
 
 
 @app.route("/acs/incomingcall", methods=["POST"])
@@ -95,7 +145,13 @@ async def web_ws():
 
 @app.route("/")
 async def index():
-    """Serves the static index page."""
+    """Redirect root to the booking SPA that includes admin pages/menu."""
+    return redirect("/booking")
+
+
+@app.route("/web-demo")
+async def web_demo():
+    """Serves the legacy web demo page."""
     return await app.send_static_file("index.html")
 
 
@@ -115,6 +171,68 @@ async def booking_app(path=""):
 
     # For client-side routes under /booking, serve SPA entrypoint.
     return await send_from_directory(booking_dir, "index.html")
+
+
+@app.route("/api/bookings/availability", methods=["GET"])
+async def booking_availability():
+    if not booking_service.is_enabled():
+        return jsonify({"error": "Booking integrations are not configured."}), 500
+
+    customer_id = request.args.get("customerId", "default")
+    start_iso = request.args.get("start")
+    end_iso = request.args.get("end")
+    if not start_iso or not end_iso:
+        return jsonify({"error": "Query parameters 'start' and 'end' are required."}), 400
+
+    try:
+        result = booking_service.check_availability(customer_id, start_iso, end_iso)
+        return jsonify(result), 200
+    except Exception as exc:
+        logging.getLogger("booking_api").exception("Availability check failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/bookings", methods=["POST"])
+async def create_booking():
+    if not booking_service.is_enabled():
+        return jsonify({"error": "Booking integrations are not configured."}), 500
+
+    payload = await request.get_json()
+    if not payload:
+        return jsonify({"error": "JSON payload is required."}), 400
+
+    try:
+        result = booking_service.create_booking(payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        logging.getLogger("booking_api").exception("Create booking failed")
+        return jsonify({"error": str(exc)}), 500
+
+    status = result.get("status")
+    if status == "conflict":
+        return jsonify(result), 409
+    if status == "partial":
+        return jsonify(result), 207
+    return jsonify(result), 201
+
+
+@app.route("/api/admin/bookings", methods=["GET"])
+async def admin_bookings():
+    limit = int(request.args.get("limit", "300"))
+    return jsonify({"items": data_store.list_bookings(limit=limit)}), 200
+
+
+@app.route("/api/admin/calls", methods=["GET"])
+async def admin_calls():
+    limit = int(request.args.get("limit", "300"))
+    return jsonify({"items": data_store.list_calls(limit=limit)}), 200
+
+
+@app.route("/api/admin/reports/summary", methods=["GET"])
+async def admin_reports_summary():
+    days = int(request.args.get("days", "30"))
+    return jsonify(data_store.summary(days=days)), 200
 
 
 if __name__ == "__main__":

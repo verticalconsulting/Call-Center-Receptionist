@@ -51,10 +51,10 @@ export default function BookingPage() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="party">
-                <BirthdayPartyForm />
+                <BirthdayPartyForm customerId={customerId} />
               </TabsContent>
               <TabsContent value="camp">
-                <CampRegistrationForm />
+                <CampRegistrationForm customerId={customerId} />
               </TabsContent>
             </Tabs>
           ) : (

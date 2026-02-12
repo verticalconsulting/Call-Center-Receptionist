@@ -2,7 +2,7 @@
 
 import asyncio
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import uuid
@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 from azure.identity.aio import ManagedIdentityCredential
 from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import BlobServiceClient
+from app.services.data_store import DataStore
 from websockets.asyncio.client import connect as ws_connect
 from websockets.typing import Data
 
@@ -170,6 +171,7 @@ class ACSMediaHandler:
         self.client_id: Optional[str] = config["AZURE_USER_ASSIGNED_IDENTITY_CLIENT_ID"]
         self.storage_account_url: Optional[str] = config.get("AZURE_STORAGE_ACCOUNT_URL")
         self.storage_container: str = config.get("AZURE_STORAGE_CONTAINER", "conversation-logs")
+        self.data_store: Optional[DataStore] = config.get("DATA_STORE")
         self.customer_id: str = customer_id
         self.send_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
         self.ws: Optional[Any] = None
@@ -181,7 +183,7 @@ class ACSMediaHandler:
         # Conversation tracking
         self.session_id: str = self._generate_guid()
         self.conversation_log: list = []
-        self.session_start_time: datetime = datetime.now()
+        self.session_start_time: datetime = datetime.now(timezone.utc)
         self.last_event_time: Optional[datetime] = None
 
         # Audio buffering to prevent crackling
@@ -203,7 +205,7 @@ class ACSMediaHandler:
             text: The transcript text or event description
             metadata: Additional event metadata
         """
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         # Calculate time since last event (pause/delay)
         time_since_last = None
@@ -482,6 +484,27 @@ class ACSMediaHandler:
 
         conversation_json = json.dumps(conversation_data, indent=2, ensure_ascii=False)
 
+        # Persist structured call data for reporting/API usage.
+        try:
+            if self.data_store:
+                user_turns = [e for e in self.conversation_log if e.get("event_type") == "transcript" and e.get("speaker") == "user"]
+                assistant_turns = [e for e in self.conversation_log if e.get("event_type") == "transcript" and e.get("speaker") == "assistant"]
+                self.data_store.insert_call_log(
+                    session_id=self.session_id,
+                    customer_id=self.customer_id,
+                    channel="web" if self.is_raw_audio else "acs",
+                    started_at_utc=self.session_start_time.astimezone(timezone.utc).isoformat(),
+                    ended_at_utc=datetime.now(timezone.utc).isoformat(),
+                    duration_seconds=round(duration, 2),
+                    user_turns=len(user_turns),
+                    assistant_turns=len(assistant_turns),
+                    first_user_utterance=(user_turns[0].get("text") if user_turns else None),
+                    first_assistant_utterance=(assistant_turns[0].get("text") if assistant_turns else None),
+                    transcript=self.conversation_log,
+                )
+        except Exception as e:
+            logger.exception("[ACSMediaHandler] Error saving call data to database: %s", e)
+
         # Save to Azure Blob Storage if configured
         if self.storage_account_url and self.client_id:
             try:
@@ -513,7 +536,7 @@ class ACSMediaHandler:
 
         # Also save locally for development/debugging
         try:
-            logs_dir = PROJECT_ROOT / "conversation_logs"
+            logs_dir = Path("/tmp/conversation_logs")
             logs_dir.mkdir(exist_ok=True)
             log_path = logs_dir / filename
 

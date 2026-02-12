@@ -19,7 +19,7 @@ const partySchema = z.object({
   additionalNotes: z.string().optional(),
 })
 
-export default function BirthdayPartyForm() {
+export default function BirthdayPartyForm({ customerId }) {
   const [selectedDate, setSelectedDate] = useState(null)
   const {
     register,
@@ -40,16 +40,32 @@ export default function BirthdayPartyForm() {
       ...data,
       preferredDate: format(selectedDate, 'yyyy-MM-dd'),
       bookingType: 'birthday_party',
+      customerId,
     }
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData),
+      })
 
-    console.log('Birthday Party Booking:', bookingData)
+      const result = await response.json()
+      if (response.status === 409) {
+        toast.error('That time is unavailable. Please pick another time.')
+        return
+      }
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to create booking')
+      }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    toast.success('Birthday party booking submitted! We will call you to confirm.')
-    reset()
-    setSelectedDate(null)
+      toast.success('Birthday party booked and synced to calendar. Reminder scheduled by SMS.')
+      reset()
+      setSelectedDate(null)
+    } catch (err) {
+      toast.error(err.message || 'Booking failed')
+    }
   }
 
   return (

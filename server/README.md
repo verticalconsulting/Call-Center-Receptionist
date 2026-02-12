@@ -87,3 +87,35 @@ To test Azure Communication Services (ACS) locally, we’ll expose the local ser
 - Use the **web client** for fast local testing.
 - Use **DevTunnel + ACS** to simulate phone calls and test telephony integration.
 - Customize the `.env` file, system prompts, and runtime behavior to fit your use case.
+
+## Booking Integration (Google Calendar + SMS)
+
+The backend exposes booking APIs used by the `/booking` frontend:
+
+- `GET /api/bookings/availability?customerId=<id>&start=<iso>&end=<iso>`
+- `POST /api/bookings`
+- `GET /api/admin/reports/summary?days=30`
+- `GET /api/admin/bookings?limit=300`
+- `GET /api/admin/calls?limit=300`
+
+To enable Google Calendar sync and SMS reminders, add these environment variables:
+
+```env
+GOOGLE_SERVICE_ACCOUNT_JSON=<service account JSON string>
+# or
+GOOGLE_SERVICE_ACCOUNT_FILE=<absolute path to service account JSON>
+GOOGLE_CALENDAR_ID=<calendar id>
+BOOKING_TIMEZONE=America/Chicago
+
+ACS_SMS_FROM=<ACS SMS-enabled E.164 phone number>
+BOOKING_REMINDER_LEAD_HOURS=48
+BOOKING_DB_PATH=/tmp/bookings.db
+BOOKING_DEFAULT_PARTY_REVENUE=350
+BOOKING_DEFAULT_CAMP_REVENUE=125
+```
+
+Notes:
+- The Google service account must have write access to the configured calendar.
+- Phone numbers are normalized to E.164 for SMS.
+- Reminders are persisted in SQLite at `BOOKING_DB_PATH`.
+- Voice/call session data is persisted to `call_logs` in the same SQLite database.

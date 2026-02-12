@@ -20,7 +20,7 @@ const campSchema = z.object({
   additionalNotes: z.string().optional(),
 })
 
-export default function CampRegistrationForm() {
+export default function CampRegistrationForm({ customerId }) {
   const [selectedDates, setSelectedDates] = useState([])
   const [sport, setSport] = useState('')
   const [experienceLevel, setExperienceLevel] = useState('')
@@ -53,18 +53,39 @@ export default function CampRegistrationForm() {
       ...data,
       campDates: selectedDates.map((date) => format(date, 'yyyy-MM-dd')),
       bookingType: 'camp_registration',
+      customerId,
     }
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData),
+      })
 
-    console.log('Camp Registration:', bookingData)
+      const result = await response.json()
+      if (response.status === 409) {
+        toast.error('Selected camp dates are unavailable.')
+        return
+      }
+      if (!response.ok && response.status !== 207) {
+        throw new Error(result.error || 'Unable to create camp booking')
+      }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (response.status === 207) {
+        toast.success('Some camp dates were booked. Unavailable dates were skipped.')
+      } else {
+        toast.success('Camp registration booked and synced to calendar. Reminder scheduled by SMS.')
+      }
 
-    toast.success('Camp registration submitted! We will call you to confirm.')
-    reset()
-    setSelectedDates([])
-    setSport('')
-    setExperienceLevel('')
+      reset()
+      setSelectedDates([])
+      setSport('')
+      setExperienceLevel('')
+    } catch (err) {
+      toast.error(err.message || 'Camp booking failed')
+    }
   }
 
   return (

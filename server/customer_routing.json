@@ -6,6 +6,7 @@
         "customer_id": "Unique identifier for the customer",
         "customer_name": "Display name for logging/debugging",
         "prompt_file": "Name of prompt file in server/prompts/ directory",
+        "google_calendar_id": "Optional Google Calendar ID override for this customer",
         "voice_name": "Optional Azure Neural Voice name override",
         "voice_temperature": "Optional voice temperature override (0.0-1.0)"
       }

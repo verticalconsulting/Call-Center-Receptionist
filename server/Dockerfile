@@ -46,8 +46,8 @@ RUN /app/.venv/bin/pip install --upgrade pip
 # Copy dependency files
 COPY server/pyproject.toml server/uv.lock /app/
 
-# Sync the project into a new environment, using the frozen lockfile
-RUN uv sync --frozen --no-dev --no-install-project --no-editable --all-packages
+# Sync dependencies for runtime image.
+RUN uv sync --no-dev --no-install-project --no-editable --all-packages
 
 COPY server/*.py server/*.md server/*.json /app/
 COPY server/app /app/app/
