@@ -53,9 +53,13 @@ export default function CustomerSelection() {
               <CardContent className="space-y-2">
                 <Button
                   className="w-full"
-                  onClick={() => navigate(`/booking/${customer.id}`)}
+                  onClick={() =>
+                    customer.id === 'dbat_pearl'
+                      ? navigate('/landing/dbat-pearl')
+                      : navigate(`/booking/${customer.id}`)
+                  }
                 >
-                  Book Online
+                  {customer.id === 'dbat_pearl' ? 'View Landing Page' : 'Book Online'}
                 </Button>
                 <Button
                   variant="outline"

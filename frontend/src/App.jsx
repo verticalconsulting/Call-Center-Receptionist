@@ -5,6 +5,7 @@ import CustomerSelection from './pages/CustomerSelection'
 import BookingPage from './pages/BookingPage'
 import VoiceDemo from './pages/VoiceDemo'
 import SiteMenu from './components/SiteMenu'
+import DbatLandingPage from './pages/DbatLandingPage'
 import AdminLayout from './components/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminBookings from './pages/admin/AdminBookings'
@@ -19,6 +20,8 @@ function App() {
         <Routes>
           <Route path="/" element={<CustomerSelection />} />
           <Route path="/booking" element={<CustomerSelection />} />
+          <Route path="/landing/dbat-pearl" element={<DbatLandingPage />} />
+          <Route path="/booking/dbat_pearl/landing" element={<DbatLandingPage />} />
           <Route path="/booking/:customerId" element={<BookingPage />} />
           <Route path="/demo/:customerId" element={<VoiceDemo />} />
           <Route path="/booking/demo/:customerId" element={<VoiceDemo />} />

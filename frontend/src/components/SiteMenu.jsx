@@ -11,6 +11,7 @@ export default function SiteMenu() {
 
   const links = [
     { to: homePath, label: 'Services' },
+    { to: '/landing/dbat-pearl', label: 'D-BAT Landing' },
     { to: '/booking/dbat_pearl', label: 'Booking' },
     { to: '/demo/dbat_pearl', label: 'Voice Demo' },
     { to: '/booking/admin', label: 'Admin' },
@@ -43,4 +44,3 @@ export default function SiteMenu() {
     </header>
   )
 }
-
