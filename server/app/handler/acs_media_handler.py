@@ -2,12 +2,14 @@
 
 import asyncio
 import base64
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
 
 from azure.identity.aio import ManagedIdentityCredential
 from azure.storage.blob import ContentSettings
@@ -172,6 +174,8 @@ class ACSMediaHandler:
         self.storage_account_url: Optional[str] = config.get("AZURE_STORAGE_ACCOUNT_URL")
         self.storage_container: str = config.get("AZURE_STORAGE_CONTAINER", "conversation-logs")
         self.data_store: Optional[DataStore] = config.get("DATA_STORE")
+        self.booking_service = config.get("BOOKING_SERVICE")
+        self.booking_timezone = config.get("BOOKING_TIMEZONE", "America/Chicago")
         self.customer_id: str = customer_id
         self.send_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
         self.ws: Optional[Any] = None
@@ -469,7 +473,7 @@ class ACSMediaHandler:
         filename = f"conversation_{timestamp}_{self.session_id[:8]}.json"
 
         # Calculate session duration
-        duration = (datetime.now() - self.session_start_time).total_seconds()
+        duration = (datetime.now(timezone.utc) - self.session_start_time).total_seconds()
 
         # Prepare conversation summary
         conversation_data = {
@@ -504,6 +508,12 @@ class ACSMediaHandler:
                 )
         except Exception as e:
             logger.exception("[ACSMediaHandler] Error saving call data to database: %s", e)
+
+        # Attempt booking capture from completed call transcript.
+        try:
+            await self._auto_capture_booking_from_transcript()
+        except Exception as e:
+            logger.exception("[ACSMediaHandler] Error during call booking automation: %s", e)
 
         # Save to Azure Blob Storage if configured
         if self.storage_account_url and self.client_id:
@@ -549,6 +559,161 @@ class ACSMediaHandler:
         except Exception as e:
             logger.exception("[ACSMediaHandler] Error saving local conversation log: %s", e)
             return None
+
+    def _extract_phone(self, text: str) -> Optional[str]:
+        digits = re.sub(r"\D", "", text or "")
+        if len(digits) >= 10:
+            digits = digits[-10:]
+            return f"+1{digits}"
+        return None
+
+    def _extract_booking_candidate(self) -> Optional[Dict[str, Any]]:
+        transcript_events = [e for e in self.conversation_log if e.get("event_type") == "transcript"]
+        if not transcript_events:
+            return None
+
+        user_texts = [e.get("text", "") for e in transcript_events if e.get("speaker") == "user"]
+        all_texts = [e.get("text", "") for e in transcript_events]
+        user_joined = " ".join(user_texts)
+        all_joined = " ".join(all_texts)
+        lowered = all_joined.lower()
+
+        booking_type = None
+        if "birthday party" in lowered or "party" in lowered:
+            booking_type = "birthday_party"
+        elif "camp" in lowered:
+            booking_type = "camp_registration"
+        if not booking_type:
+            return None
+
+        parent_name = "Unknown Caller"
+        m_parent = re.search(r"\bthis is ([A-Za-z]+(?: [A-Za-z]+)?)", all_joined, flags=re.IGNORECASE)
+        if m_parent:
+            parent_name = m_parent.group(1).strip().title()
+
+        child_name = "Unknown Child"
+        m_child = re.search(r"\bfor ([A-Za-z]+(?: [A-Za-z]+)?)", all_joined, flags=re.IGNORECASE)
+        if m_child:
+            child_name = m_child.group(1).strip().title()
+
+        phone = self._extract_phone(all_joined) or "+10000000000"
+
+        age = "0"
+        m_age = re.search(r"\b(?:he'?s|she'?s|is|turning)\s*(\d{1,2})\b", all_joined, flags=re.IGNORECASE)
+        if m_age:
+            age = m_age.group(1)
+
+        kids = "1"
+        m_kids = re.search(r"\b(\d{1,3})\s*(?:kids|children)\b", all_joined, flags=re.IGNORECASE)
+        if m_kids:
+            kids = m_kids.group(1)
+
+        local_start = self._extract_local_start_datetime(all_joined, booking_type)
+        if not local_start:
+            return None
+
+        return {
+            "bookingType": booking_type,
+            "customerId": self.customer_id,
+            "parentName": parent_name,
+            "phoneNumber": phone,
+            "childName": child_name,
+            "childAge": age,
+            "numberOfKids": kids,
+            "preferredDate": local_start.strftime("%Y-%m-%d"),
+            "preferredTime": local_start.strftime("%H:%M"),
+            "campDates": [local_start.strftime("%Y-%m-%d")],
+            "sport": "baseball",
+            "experienceLevel": "intermediate",
+            "additionalNotes": "Auto-captured from voice call transcript.",
+        }
+
+    def _extract_local_start_datetime(self, text: str, booking_type: str) -> Optional[datetime]:
+        tz = ZoneInfo(self.booking_timezone)
+        now_local = datetime.now(tz)
+        lowered = text.lower()
+
+        weekday_map = {
+            "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+            "friday": 4, "saturday": 5, "sunday": 6,
+        }
+        target_date = None
+        for name, idx in weekday_map.items():
+            if f"next {name}" in lowered or re.search(rf"\b{name}\b", lowered):
+                delta = (idx - now_local.weekday()) % 7
+                if delta == 0:
+                    delta = 7
+                target_date = (now_local + timedelta(days=delta)).date()
+                break
+
+        if not target_date:
+            m_date = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", lowered)
+            if m_date:
+                target_date = datetime.fromisoformat(m_date.group(1)).date()
+        if not target_date:
+            return None
+
+        hour, minute = (15, 0) if booking_type == "birthday_party" else (9, 0)
+        m_time = re.search(r"\bat\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\b", lowered)
+        if m_time:
+            hour = int(m_time.group(1))
+            minute = int(m_time.group(2) or 0)
+            ampm = m_time.group(3)
+            if ampm:
+                ampm = ampm.replace(".", "")
+                if ampm.startswith("p") and hour < 12:
+                    hour += 12
+                if ampm.startswith("a") and hour == 12:
+                    hour = 0
+
+        return datetime(
+            year=target_date.year,
+            month=target_date.month,
+            day=target_date.day,
+            hour=hour,
+            minute=minute,
+            tzinfo=tz,
+        )
+
+    async def _auto_capture_booking_from_transcript(self) -> None:
+        # Only auto-capture bookings from phone/ACS calls.
+        if self.is_raw_audio:
+            return
+
+        candidate = self._extract_booking_candidate()
+        if not candidate:
+            return
+
+        # Try full booking flow (calendar + reminders + DB) when integration is configured.
+        if self.booking_service and self.booking_service.is_enabled():
+            result = self.booking_service.create_booking(candidate)
+            logger.info("[ACSMediaHandler] Auto booking result: %s", result.get("status"))
+            return
+
+        # Fallback: ensure booking still appears in admin/data even without calendar integration.
+        if self.data_store:
+            local_start = datetime.strptime(
+                f"{candidate['preferredDate']} {candidate['preferredTime']}",
+                "%Y-%m-%d %H:%M",
+            ).replace(tzinfo=ZoneInfo(self.booking_timezone))
+            duration_minutes = 120 if candidate["bookingType"] == "birthday_party" else 180
+            local_end = local_start + timedelta(minutes=duration_minutes)
+            self.data_store.insert_booking(
+                customer_id=candidate["customerId"],
+                booking_type=candidate["bookingType"],
+                parent_name=candidate["parentName"],
+                phone_number=candidate["phoneNumber"],
+                child_name=candidate["childName"],
+                start_time_utc=local_start.astimezone(timezone.utc).isoformat(),
+                end_time_utc=local_end.astimezone(timezone.utc).isoformat(),
+                status="captured_from_call",
+                estimated_revenue=0,
+                metadata={
+                    "source": "voice_call_auto_capture",
+                    "session_id": self.session_id,
+                },
+            )
+            logger.info("[ACSMediaHandler] Stored fallback booking from call transcript")
 
     async def close(self) -> None:
         """Closes WebSocket connection and cancels background tasks."""

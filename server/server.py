@@ -72,6 +72,7 @@ booking_service = BookingService(
     reminder_service=reminder_service,
     data_store=data_store,
 )
+app.config["BOOKING_SERVICE"] = booking_service
 
 
 @app.before_serving
