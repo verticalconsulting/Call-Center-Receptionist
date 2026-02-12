@@ -1,30 +1,137 @@
-# System Prompts Configuration
+# Voice Agent System Prompts
 
-This directory contains system prompt configurations for the voice agent.
+This directory contains system prompts for different customer configurations. Each prompt file defines the persona, behavior, and knowledge base for the voice agent.
 
-## Files
+## Available Prompts
 
-- **grace_intake_agent.txt** - Default system prompt for Grace, the intake agent for Mercy House and Sacred Grove facilities
+### grace_intake_agent.txt
+**Customer**: Mercy House & Sacred Grove
+**Persona**: Grace - Professional intake receptionist
+**Purpose**: Handling intake calls for substance abuse recovery facilities
 
-## Usage
+### customer_xyz_agent.txt
+**Customer**: Customer XYZ Healthcare (Example)
+**Persona**: Healthcare intake agent
+**Purpose**: General healthcare appointment scheduling and inquiries
 
-The prompts are automatically loaded by `acs_media_handler.py` when a session is created. To modify the agent's behavior:
+## Creating New Prompts
 
-1. Edit `grace_intake_agent.txt` directly
-2. Save your changes
-3. Restart the server - the new prompt will be loaded automatically
+To add a new customer prompt:
 
-## Creating Alternative Prompts
+1. **Create prompt file**: Add a new `.txt` file in this directory (e.g., `new_customer_agent.txt`)
 
-To create different prompt configurations:
-
-1. Create a new `.txt` file in this directory (e.g., `grace_spanish.txt`)
-2. Copy the content from `grace_intake_agent.txt` as a starting point
-3. Modify as needed
-4. Update `acs_media_handler.py` to load your prompt:
-   ```python
-   "instructions": load_system_prompt("grace_spanish.txt"),
+2. **Update routing config**: Add entry to `server/customer_routing.json`:
+   ```json
+   {
+     "customers": {
+       "+1234567890": {
+         "customer_id": "new_customer",
+         "customer_name": "New Customer Inc",
+         "prompt_file": "new_customer_agent.txt"
+       }
+     }
+   }
    ```
+
+3. **Test locally**: Restart the server and test via web client or phone
+
+## Prompt Structure Guidelines
+
+A good system prompt should include:
+
+### 1. Identity & Role
+```
+You are [name], [role description] for [organization].
+```
+
+### 2. Primary Responsibilities
+List 3-5 key tasks the agent should handle:
+```
+Your role is to:
+1. [First responsibility]
+2. [Second responsibility]
+...
+```
+
+### 3. Communication Style
+Define tone, pacing, and interaction patterns:
+```
+Communication Style:
+- [Tone: professional, casual, empathetic, etc.]
+- [Pacing: natural pauses, concise responses]
+- [Active listening behaviors]
+```
+
+### 4. Important Guidelines
+Security, compliance, and operational rules:
+```
+Important Guidelines:
+- What information can be collected
+- What NOT to do (medical advice, financial info, etc.)
+- Escalation procedures
+- Compliance requirements
+```
+
+### 5. Organization Context
+Relevant facts about the organization:
+```
+Organization Information:
+- Services offered
+- Operating hours
+- Contact information
+- Special programs
+```
+
+## Voice Configuration
+
+Beyond the prompt text, you can customize the voice in `customer_routing.json`:
+
+```json
+{
+  "voice_name": "en-US-Emma2:DragonHDLatestNeural",
+  "voice_temperature": 0.8
+}
+```
+
+**Available voices**: See [Azure Neural Voice Gallery](https://speech.microsoft.com/portal/voicegallery)
+
+**Temperature**:
+- `0.6-0.7`: More consistent, professional
+- `0.8-0.9`: More expressive, conversational
+- `1.0`: Maximum expressiveness
+
+## Testing Prompts
+
+### Web Client Testing
+1. Start server: `uv run server.py`
+2. Navigate to `http://localhost:8000`
+3. Test the default prompt configured in routing
+
+### Phone Testing
+1. Configure phone number in `customer_routing.json`
+2. Deploy with `azd up` or use devtunnel for local testing
+3. Call the number to test live
+
+### Prompt Iteration Tips
+- Start with clear identity and role
+- Test with real conversation scenarios
+- Refine based on actual call patterns
+- Keep prompts focused and concise (under 500 words)
+- Use specific examples for complex behaviors
+
+## Security Considerations
+
+⚠️ **Do NOT include in prompts**:
+- Actual phone numbers or addresses (use placeholders)
+- Real patient/client data
+- Internal system details or credentials
+- Sensitive compliance information
+
+✅ **Do include**:
+- General organization purpose
+- Public-facing information
+- Behavioral guidelines
+- Escalation procedures
 
 ## Best Practices
 
@@ -32,17 +139,6 @@ To create different prompt configurations:
 - **Use natural language**: Write as you would speak, including conversational phrases
 - **Test changes thoroughly**: Small wording changes can significantly impact agent behavior
 - **Version control**: This file is tracked in git, so you can see prompt evolution over time
-
-## Prompt Structure
-
-The current prompt includes:
-
-1. **Character definition** - Who Grace is
-2. **Personality traits** - How Grace should behave
-3. **Conversational guidelines** - Natural speech patterns, disfluencies, tone matching
-4. **Capabilities** - What Grace can help with
-5. **Data collection** - What information to gather
-6. **Edge cases** - Handling silence, unclear input, limitations
 
 ## Fallback Behavior
 

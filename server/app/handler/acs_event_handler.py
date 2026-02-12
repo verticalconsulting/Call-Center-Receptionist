@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from pathlib import Path
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from azure.communication.callautomation import (AudioFormat,
@@ -15,6 +16,66 @@ from azure.eventgrid import EventGridEvent, SystemEventNames
 from quart import Response
 
 logger = logging.getLogger(__name__)
+
+
+def load_customer_routing() -> dict:
+    """
+    Load customer routing configuration from JSON file.
+
+    Returns:
+        Dictionary with customer routing config
+    """
+    handler_dir = Path(__file__).parent
+    routing_path = handler_dir.parent.parent / "customer_routing.json"
+
+    try:
+        with open(routing_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            logger.info("[AcsEventHandler] Loaded customer routing config with %d customers",
+                       len(config.get("customers", {})))
+            return config
+    except FileNotFoundError:
+        logger.warning("[AcsEventHandler] customer_routing.json not found, using default routing")
+        return {"customers": {}, "default": {"customer_id": "default", "prompt_file": "grace_intake_agent.txt"}}
+    except Exception as e:
+        logger.exception("[AcsEventHandler] Error loading customer routing: %s", e)
+        return {"customers": {}, "default": {"customer_id": "default", "prompt_file": "grace_intake_agent.txt"}}
+
+
+def get_customer_config(to_phone_number: str, routing_config: dict) -> dict:
+    """
+    Get customer configuration based on the called phone number.
+
+    Args:
+        to_phone_number: The phone number that was called (e.g., "+18005551234")
+        routing_config: The routing configuration dictionary
+
+    Returns:
+        Customer configuration with customer_id, prompt_file, etc.
+    """
+    # Normalize phone number (remove spaces, dashes)
+    normalized = to_phone_number.replace(" ", "").replace("-", "")
+
+    customers = routing_config.get("customers", {})
+
+    # Try exact match first
+    if normalized in customers:
+        config = customers[normalized]
+        logger.info("[AcsEventHandler] Matched customer: %s (phone: %s)",
+                   config.get("customer_name", "Unknown"), normalized)
+        return config
+
+    # Try without country code prefix variations
+    for phone_key, config in customers.items():
+        if normalized.endswith(phone_key[-10:]) or phone_key.endswith(normalized[-10:]):
+            logger.info("[AcsEventHandler] Partial match for customer: %s (phone: %s)",
+                       config.get("customer_name", "Unknown"), phone_key)
+            return config
+
+    # Use default
+    default_config = routing_config.get("default", {"customer_id": "default", "prompt_file": "grace_intake_agent.txt"})
+    logger.info("[AcsEventHandler] No customer match for %s, using default", normalized)
+    return default_config
 
 
 class AcsEventHandler:
@@ -54,9 +115,25 @@ class AcsEventHandler:
                     else caller_info["rawId"]
                 )
 
-                logger.info("incoming call handler caller id: %s", caller_id)
+                # Extract the phone number that was called (to_phone_number)
+                to_info = event.data.get("to", {})
+                to_phone_number = (
+                    to_info.get("phoneNumber", {}).get("value")
+                    if to_info.get("kind") == "phoneNumber"
+                    else to_info.get("rawId", "unknown")
+                )
+
+                logger.info("incoming call handler caller id: %s, called number: %s", caller_id, to_phone_number)
+
+                # Load customer routing and determine customer configuration
+                routing_config = load_customer_routing()
+                customer_config = get_customer_config(to_phone_number, routing_config)
+                customer_id = customer_config.get("customer_id", "default")
+
+                logger.info("Routing call to customer: %s", customer_id)
+
                 incoming_call_context = event.data["incomingCallContext"]
-                query_parameters = urlencode({"callerId": caller_id})
+                query_parameters = urlencode({"callerId": caller_id, "customerId": customer_id})
                 guid = uuid.uuid4()
 
                 callback_events_uri = (

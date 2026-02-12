@@ -69,12 +69,79 @@ def load_system_prompt(prompt_file: str = "grace_intake_agent.txt") -> str:
         raise
 
 
-def session_config():
-    """Returns the default session configuration for Voice Live."""
+def load_customer_routing() -> dict:
+    """
+    Load customer routing configuration from JSON file.
+
+    Returns:
+        Dictionary with customer routing config
+    """
+    handler_dir = Path(__file__).parent
+    routing_path = handler_dir.parent.parent / "customer_routing.json"
+
+    try:
+        with open(routing_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            logger.info("[ACSMediaHandler] Loaded customer routing config with %d customers",
+                       len(config.get("customers", {})))
+            return config
+    except FileNotFoundError:
+        logger.warning("[ACSMediaHandler] customer_routing.json not found, using default routing")
+        return {"customers": {}, "default": {"customer_id": "default", "prompt_file": "grace_intake_agent.txt"}}
+    except Exception as e:
+        logger.exception("[ACSMediaHandler] Error loading customer routing: %s", e)
+        return {"customers": {}, "default": {"customer_id": "default", "prompt_file": "grace_intake_agent.txt"}}
+
+
+def get_customer_config_by_id(customer_id: str) -> dict:
+    """
+    Get customer configuration by customer ID.
+
+    Args:
+        customer_id: The customer identifier
+
+    Returns:
+        Customer configuration with prompt_file, voice settings, etc.
+    """
+    routing_config = load_customer_routing()
+
+    # Search through customers for matching ID
+    for phone, config in routing_config.get("customers", {}).items():
+        if config.get("customer_id") == customer_id:
+            logger.info("[ACSMediaHandler] Found config for customer: %s", customer_id)
+            return config
+
+    # Fall back to default
+    default_config = routing_config.get("default", {
+        "customer_id": "default",
+        "prompt_file": "grace_intake_agent.txt",
+        "voice_name": "en-US-Emma2:DragonHDLatestNeural",
+        "voice_temperature": 0.8
+    })
+    logger.info("[ACSMediaHandler] Using default config for customer: %s", customer_id)
+    return default_config
+
+
+def session_config(customer_id: str = "default"):
+    """
+    Returns session configuration for Voice Live based on customer.
+
+    Args:
+        customer_id: The customer identifier for routing-specific configuration
+    """
+    customer_config = get_customer_config_by_id(customer_id)
+
+    prompt_file = customer_config.get("prompt_file", "grace_intake_agent.txt")
+    voice_name = customer_config.get("voice_name", "en-US-Emma2:DragonHDLatestNeural")
+    voice_temp = customer_config.get("voice_temperature", 0.8)
+
+    logger.info("[ACSMediaHandler] Session config: customer=%s, prompt=%s, voice=%s",
+               customer_id, prompt_file, voice_name)
+
     return {
         "type": "session.update",
         "session": {
-            "instructions": load_system_prompt(),
+            "instructions": load_system_prompt(prompt_file),
             "turn_detection": {
                 "type": "azure_semantic_vad",
                 "threshold": 0.25,
@@ -88,9 +155,9 @@ def session_config():
             "input_audio_noise_reduction": {"type": "azure_deep_noise_suppression"},
             "input_audio_echo_cancellation": {"type": "server_echo_cancellation"},
             "voice": {
-                "name": "en-US-Emma2:DragonHDLatestNeural",
+                "name": voice_name,
                 "type": "azure-standard",
-                "temperature": 0.8
+                "temperature": voice_temp
             },
         },
     }
@@ -98,13 +165,14 @@ def session_config():
 class ACSMediaHandler:
     """Manages audio streaming between client and Azure Voice Live API."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], customer_id: str = "default"):
         self.endpoint: str = config["AZURE_VOICE_LIVE_ENDPOINT"]
         self.model: str = config["VOICE_LIVE_MODEL"]
         self.api_key: Optional[str] = config["AZURE_VOICE_LIVE_API_KEY"]
         self.client_id: Optional[str] = config["AZURE_USER_ASSIGNED_IDENTITY_CLIENT_ID"]
         self.storage_account_url: Optional[str] = config.get("AZURE_STORAGE_ACCOUNT_URL")
         self.storage_container: str = config.get("AZURE_STORAGE_CONTAINER", "conversation-logs")
+        self.customer_id: str = customer_id
         self.send_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
         self.ws: Optional[Any] = None
         self.send_task: Optional[asyncio.Task] = None
@@ -121,6 +189,8 @@ class ACSMediaHandler:
         # Audio buffering to prevent crackling
         self.current_response_id: Optional[str] = None
         self.is_first_audio_chunk: bool = True
+
+        logger.info("[ACSMediaHandler] Initialized for customer: %s", customer_id)
 
     def _generate_guid(self) -> str:
         return str(uuid.uuid4())
@@ -185,7 +255,7 @@ class ACSMediaHandler:
             self.ws = await ws_connect(url, additional_headers=headers)
             logger.info("[ACSMediaHandler] WebSocket connection established")
 
-            await self._send_json(session_config())
+            await self._send_json(session_config(self.customer_id))
             await self._send_json({"type": "response.create"})
 
             self.receiver_task = asyncio.create_task(self._receiver_loop())

@@ -21,14 +21,35 @@ This is a **Call Center Voice Agent Accelerator** built with Azure Voice Live AP
 
 ## Development Commands
 
-### Local Development (server/ directory)
+### Local Development
+
+#### Backend (server/ directory)
 
 ```bash
-# Run the server locally
+# Run the Python server
 uv run server.py
 
-# Access web client at http://127.0.0.1:8000
+# Access simple voice demo at http://127.0.0.1:8000
+# Access booking UI at http://127.0.0.1:8000/booking
 ```
+
+#### Frontend (frontend/ directory)
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server (with HMR)
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+The frontend dev server runs on port 3000 and proxies WebSocket requests to the Python backend on port 8000.
 
 ### Docker Development
 
@@ -74,22 +95,53 @@ devtunnel host
 ```
 server/
 ├── server.py                    # Main Quart application with routes
+├── customer_routing.json        # Multi-customer phone number routing config
 ├── app/
 │   └── handler/
 │       ├── acs_event_handler.py # Processes ACS incoming calls and callbacks
 │       └── acs_media_handler.py # Manages audio streaming to Voice Live API
-└── static/                      # Web client HTML/JS
+├── prompts/                     # Customer-specific system prompts
+│   ├── grace_intake_agent.txt
+│   ├── customer_xyz_agent.txt
+│   ├── dbat_pearl_agent.txt
+│   └── README.md
+├── static/                      # Static files
+│   ├── index.html               # Simple voice demo (legacy)
+│   ├── audio-processor.js
+│   └── booking/                 # React booking UI (built from frontend/)
+└── conversation_logs/           # Saved conversation transcripts
+
+frontend/                        # React booking interface
+├── src/
+│   ├── components/
+│   │   ├── ui/                  # shadcn/ui components
+│   │   └── booking/             # Booking form components
+│   ├── pages/
+│   │   ├── CustomerSelection.jsx  # Landing page
+│   │   ├── BookingPage.jsx        # Booking forms
+│   │   └── VoiceDemo.jsx          # Voice agent demo
+│   ├── hooks/
+│   │   └── useVoiceAgent.js     # WebSocket voice integration
+│   └── App.jsx
+├── package.json
+├── vite.config.js
+└── README.md
 ```
 
 ### Request Flow
 
-1. **Web Client Mode**: Browser → `/web/ws` WebSocket → `ACSMediaHandler` → Voice Live API
-2. **ACS Phone Mode**: Phone Call → ACS IncomingCall event → `/acs/incomingcall` → Answer call with media streaming → `/acs/ws` WebSocket → `ACSMediaHandler` → Voice Live API
+1. **React Booking UI**: Browser → `/booking` → React app (customer selection, forms, voice demo)
+2. **Web Client Voice Mode**: Browser → `/web/ws?customerId=<customer>` WebSocket → `ACSMediaHandler` → Voice Live API
+3. **ACS Phone Mode**:
+   - Phone Call → ACS IncomingCall event → `/acs/incomingcall`
+   - Extract called phone number → Look up customer in `customer_routing.json`
+   - Answer call with media streaming → `/acs/ws?customerId=<customer>` WebSocket
+   - `ACSMediaHandler` loads customer-specific prompt and voice settings → Voice Live API
 
 ### Key Handlers
 
-- **AcsEventHandler** (`acs_event_handler.py`): Handles EventGrid subscription validation and incoming call events. Answers calls with `MediaStreamingOptions` configured for bidirectional audio.
-- **ACSMediaHandler** (`acs_media_handler.py`): Establishes WebSocket connection to Voice Live API, manages audio queues, and handles bidirectional audio streaming. Uses managed identity or API key authentication.
+- **AcsEventHandler** (`acs_event_handler.py`): Handles EventGrid subscription validation and incoming call events. Extracts the called phone number, looks up customer configuration from `customer_routing.json`, and answers calls with `MediaStreamingOptions` configured for bidirectional audio. Passes `customerId` via WebSocket query parameters.
+- **ACSMediaHandler** (`acs_media_handler.py`): Establishes WebSocket connection to Voice Live API with customer-specific configuration. Loads appropriate system prompt and voice settings based on `customer_id`. Manages audio queues and handles bidirectional audio streaming. Uses managed identity or API key authentication.
 
 ### Infrastructure (infra/)
 
@@ -110,7 +162,7 @@ Create `.env` file in `server/` directory based on `.env-sample.txt`:
 ```
 AZURE_VOICE_LIVE_API_KEY=<AI Foundry resource key>
 AZURE_VOICE_LIVE_ENDPOINT=<AI Foundry resource endpoint>
-VOICE_LIVE_MODEL=gpt-4o-mini
+VOICE_LIVE_MODEL=gpt-realtime
 ACS_CONNECTION_STRING=<Communication Services connection string>
 ACS_DEV_TUNNEL=<Optional: DevTunnel URL for local ACS testing>
 ```
@@ -121,22 +173,62 @@ When deployed to Azure, the container app uses:
 
 ## Voice Live API Configuration
 
-Session configuration is defined in [acs_media_handler.py:68](server/app/handler/acs_media_handler.py#L68):
+Session configuration is defined in `acs_media_handler.py:session_config()`:
 - **Turn Detection**: Azure Semantic VAD with end-of-utterance detection
 - **Audio Processing**: Deep noise suppression and server echo cancellation
-- **Voice**: Configurable Azure Neural TTS voice (default: en-US-Emma2:DragonHDLatestNeural)
-- **Instructions**: Loaded dynamically from [server/prompts/grace_intake_agent.txt](server/prompts/grace_intake_agent.txt)
+- **Voice**: Configurable per-customer Azure Neural TTS voice (default: en-US-Emma2:DragonHDLatestNeural)
+- **Instructions**: Loaded dynamically from customer-specific prompt files in [server/prompts/](server/prompts/)
 
-### System Prompt Configuration
+### Multi-Customer Configuration
 
-System prompts are now externalized for easy editing without code changes:
+The system supports multiple customers with different phone numbers, each with their own:
+- System prompt and agent persona
+- Voice settings (voice name, temperature)
+- Custom configuration per phone number
 
-- **Location**: [server/prompts/grace_intake_agent.txt](server/prompts/grace_intake_agent.txt)
-- **Editing**: Directly edit the text file and restart the server
-- **Creating Variants**: Copy the file and modify the prompt loader in `session_config()`
-- **Documentation**: See [server/prompts/README.md](server/prompts/README.md) for guidance
+#### Customer Routing Setup
 
-The current prompt configures Grace as a professional intake receptionist for Mercy House and Sacred Grove facilities.
+1. **Configure phone number mapping** in [server/customer_routing.json](server/customer_routing.json):
+   ```json
+   {
+     "customers": {
+       "+18005551234": {
+         "customer_id": "mercy_house",
+         "customer_name": "Mercy House & Sacred Grove",
+         "prompt_file": "grace_intake_agent.txt",
+         "voice_name": "en-US-Emma2:DragonHDLatestNeural",
+         "voice_temperature": 0.8
+       },
+       "+18005555678": {
+         "customer_id": "customer_xyz",
+         "customer_name": "Customer XYZ Healthcare",
+         "prompt_file": "customer_xyz_agent.txt"
+       }
+     },
+     "default": {
+       "customer_id": "default",
+       "prompt_file": "grace_intake_agent.txt"
+     }
+   }
+   ```
+
+2. **Create system prompts** in [server/prompts/](server/prompts/):
+   - Each customer can have a unique prompt file
+   - See [server/prompts/README.md](server/prompts/README.md) for prompt creation guidelines
+   - Example prompts: `grace_intake_agent.txt`, `customer_xyz_agent.txt`
+
+3. **Restart server** to load new configuration
+
+#### Adding a New Customer
+
+To add a new customer with a different phone number:
+
+1. Create new prompt file: `server/prompts/new_customer_agent.txt`
+2. Add phone mapping to `server/customer_routing.json`
+3. Provision phone number in Azure Communication Services
+4. Test by calling the phone number
+
+**Note**: All customers share the same Azure infrastructure (Container App, Voice Live API endpoint). No separate deployments needed.
 
 ## Post-Deployment Setup
 
@@ -144,8 +236,9 @@ After `azd up`:
 1. Navigate to the Container App URL to test the web client
 2. For phone testing:
    - Create Event Grid subscription for IncomingCall events pointing to `https://<container-app-url>/acs/incomingcall`
-   - Provision a phone number for the ACS resource
-   - Call the number to test the voice agent
+   - Provision a phone number for each customer in ACS
+   - Configure phone numbers in `customer_routing.json`
+   - Call the number to test customer-specific voice agent
 
 ## Conversation Logging and Analysis
 
@@ -200,4 +293,7 @@ See [server/conversation_logs/README.md](server/conversation_logs/README.md) for
 - **Security**: ACS connection string is stored in Key Vault. Container app retrieves it via secret reference.
 - **Authentication**: Production deployments use managed identity for Voice Live API. Local development uses API key.
 - **Region Constraints**: Voice Live API is only available in specific regions (swedencentral strongly recommended).
-- **WebSocket Endpoints**: `/web/ws` for browser clients (raw audio), `/acs/ws` for ACS calls (PCM 24kHz mono).
+- **WebSocket Endpoints**:
+  - `/web/ws` for browser clients (raw audio, uses default customer)
+  - `/acs/ws?customerId=<customer>` for ACS calls (PCM 24kHz mono, customer-specific routing)
+- **Storage**: Conversation logs are stored in Azure Storage Blobs when `AZURE_STORAGE_ACCOUNT_URL` is configured (managed identity access).

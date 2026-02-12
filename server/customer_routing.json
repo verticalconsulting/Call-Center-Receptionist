@@ -1,0 +1,41 @@
+{
+  "_comment": "Customer routing configuration - maps phone numbers to customer profiles",
+  "_schema": {
+    "customers": {
+      "<phone_number>": {
+        "customer_id": "Unique identifier for the customer",
+        "customer_name": "Display name for logging/debugging",
+        "prompt_file": "Name of prompt file in server/prompts/ directory",
+        "voice_name": "Optional Azure Neural Voice name override",
+        "voice_temperature": "Optional voice temperature override (0.0-1.0)"
+      }
+    },
+    "default": {
+      "customer_id": "Fallback customer ID if no match found",
+      "prompt_file": "Default prompt file"
+    }
+  },
+  "customers": {
+    "+18005551234": {
+      "customer_id": "dbat_pearl",
+      "customer_name": "D-BAT Pearl",
+      "prompt_file": "dbat_pearl_agent.txt",
+      "voice_name": "en-US-Emma1:DragonHDLatestNeural",
+      "voice_temperature": 0.8
+    },
+    "+18005555678": {
+      "customer_id": "customer_xyz",
+      "customer_name": "Customer XYZ Healthcare",
+      "prompt_file": "customer_xyz_agent.txt",
+      "voice_name": "en-US-Emma2:DragonHDLatestNeural",
+      "voice_temperature": 0.8
+    }
+  },
+  "default": {
+    "customer_id": "default",
+    "customer_name": "Default Customer",
+    "prompt_file": "grace_intake_agent.txt",
+    "voice_name": "en-US-Emma2:DragonHDLatestNeural",
+    "voice_temperature": 0.8
+  }
+}
