@@ -8,24 +8,21 @@ const campFlyers = [
     title: 'Spring Break Hitting Camp',
     date: 'March 18-20, 2026',
     age: 'Ages 8-13',
-    image:
-      'https://images.unsplash.com/photo-1518604666860-9ed391f76460?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://imagedelivery.net/dXRounTcgmfhZwbsZCZLTw/524b5603-d8ff-4ab4-cfac-31327852a500/small',
   },
   {
     id: 'summer-skills-clinic',
     title: 'Summer Skills Clinic',
     date: 'June 8-12, 2026',
     age: 'Ages 10-16',
-    image:
-      'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://imagedelivery.net/dXRounTcgmfhZwbsZCZLTw/d13358b8-9a89-4989-e09d-9cba84a9fc00/small',
   },
   {
-    id: 'elite-catching-camp',
-    title: 'Elite Catching Camp',
-    date: 'July 15-16, 2026',
-    age: 'Ages 11-17',
-    image:
-      'https://images.unsplash.com/photo-1471295253337-3ceaaedca402?auto=format&fit=crop&w=1200&q=80',
+    id: 'pro-shop-equipment',
+    title: 'Pro Shop Equipment Spotlight',
+    date: 'Now Available',
+    age: 'All Ages',
+    image: 'https://imagedelivery.net/dXRounTcgmfhZwbsZCZLTw/1282c574-9132-4660-39a1-73f4c4f79100/small',
   },
 ]
 
@@ -49,12 +46,12 @@ const partyPackages = [
 ]
 
 const partyPhotos = [
-  'https://images.unsplash.com/photo-1530541930197-ff16ac917b0e?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1544717302-de2939b7ef71?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1511988617509-a57c8a288659?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1527525443983-6e60c75fff46?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=900&q=80',
+  '/dbat/party-1.jpg',
+  '/dbat/party-2.jpg',
+  '/dbat/party-3.jpg',
+  '/dbat/party-4.jpg',
+  '/dbat/party-5.jpg',
+  '/dbat/party-6.jpg',
 ]
 
 const reviews = [
@@ -78,6 +75,11 @@ export default function DbatLandingPage() {
       <section className="relative overflow-hidden border-b border-slate-800">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(132,204,22,0.22),_transparent_45%),radial-gradient(circle_at_bottom_left,_rgba(56,189,248,0.18),_transparent_45%)]" />
         <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
+          <img
+            src="https://imagedelivery.net/dXRounTcgmfhZwbsZCZLTw/19208c5d-9371-42de-436c-fbe365f38900/small"
+            alt="D-BAT Pearl logo"
+            className="w-40 md:w-56 h-auto mb-4 drop-shadow-[0_0_24px_rgba(59,130,246,0.55)]"
+          />
           <p className="text-lime-400 font-medium tracking-wide uppercase text-xs mb-3">D-BAT Pearl</p>
           <h1 className="text-4xl md:text-6xl font-bold leading-tight max-w-3xl">
             Epic Birthday Parties. Game-Changing Skills Camps.

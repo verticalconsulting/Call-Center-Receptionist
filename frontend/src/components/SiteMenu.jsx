@@ -24,7 +24,14 @@ export default function SiteMenu() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
       <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <NavLink to="/booking" className="mr-1 inline-flex items-center">
+            <img
+              src="https://imagedelivery.net/dXRounTcgmfhZwbsZCZLTw/19208c5d-9371-42de-436c-fbe365f38900/small"
+              alt="D-BAT Pearl logo"
+              className="h-10 w-auto sm:h-12"
+            />
+          </NavLink>
           {links.map((link) => (
             <NavLink
               key={`${link.to}-${link.label}`}

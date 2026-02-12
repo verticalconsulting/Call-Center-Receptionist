@@ -34,6 +34,11 @@ export default function CustomerSelection() {
   return (
     <div className="container max-w-6xl mx-auto px-4 py-12">
       <div className="text-center mb-12">
+        <img
+          src="https://imagedelivery.net/dXRounTcgmfhZwbsZCZLTw/19208c5d-9371-42de-436c-fbe365f38900/small"
+          alt="D-BAT Pearl logo"
+          className="mx-auto w-36 md:w-48 h-auto mb-5"
+        />
         <h1 className="text-4xl font-bold mb-4">Welcome to Call Center Services</h1>
         <p className="text-lg text-gray-600">Select a service to get started</p>
       </div>
